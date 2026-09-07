@@ -6,10 +6,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
 
-# LangChain imports for free open-source models
+# LangChain imports
 from langchain_community.document_loaders import PyPDFLoader, Docx2txtLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_community.embeddings import HuggingFaceInferenceAPIEmbeddings
 from langchain_groq import ChatGroq
 from langchain_chroma import Chroma
 from langchain_core.prompts import ChatPromptTemplate
@@ -20,6 +20,9 @@ load_dotenv()
 
 if not os.getenv("GROQ_API_KEY"):
     raise ValueError("GROQ_API_KEY is not set in the .env file")
+    
+if not os.getenv("HF_TOKEN"):
+    raise ValueError("HF_TOKEN is not set. Please add it to your environment variables.")
 
 app = FastAPI(title="Chat With Your Document API")
 
@@ -68,8 +71,11 @@ async def upload_document(file: UploadFile = File(...)):
         )
         chunks = text_splitter.split_documents(documents)
         
-        # 3. Embed using FREE local HuggingFace embeddings
-        embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+        # 3. Embed using FREE Hugging Face Cloud Inference API (Prevents Render OOM)
+        embeddings = HuggingFaceInferenceAPIEmbeddings(
+            api_key=os.getenv("HF_TOKEN"),
+            model_name="sentence-transformers/all-MiniLM-L6-v2"
+        )
         
         # 4. Store in an IN-MEMORY ChromaDB
         VECTOR_STORE = Chroma.from_documents(
