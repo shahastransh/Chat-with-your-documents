@@ -1,0 +1,6 @@
+# Backend / Python
+venv/
+__pycache__/
+temp_docs/
+chroma_db/
+.env
