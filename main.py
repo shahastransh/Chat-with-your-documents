@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 # LangChain imports
 from langchain_community.document_loaders import PyPDFLoader, Docx2txtLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.embeddings import HuggingFaceInferenceAPIEmbeddings
+from langchain_huggingface import HuggingFaceEndpointEmbeddings
 from langchain_groq import ChatGroq
 from langchain_chroma import Chroma
 from langchain_core.prompts import ChatPromptTemplate
@@ -71,10 +71,11 @@ async def upload_document(file: UploadFile = File(...)):
         )
         chunks = text_splitter.split_documents(documents)
         
-        # 3. Embed using FREE Hugging Face Cloud Inference API (Prevents Render OOM)
-        embeddings = HuggingFaceInferenceAPIEmbeddings(
-            api_key=os.getenv("HF_TOKEN"),
-            model_name="sentence-transformers/all-MiniLM-L6-v2"
+        # 3. Embed using the current Hugging Face Inference API format
+        embeddings = HuggingFaceEndpointEmbeddings(
+            model="sentence-transformers/all-MiniLM-L6-v2",
+            task="feature-extraction",
+            huggingfacehub_api_token=os.getenv("HF_TOKEN")
         )
         
         # 4. Store in an IN-MEMORY ChromaDB
