@@ -216,7 +216,7 @@ os.makedirs("temp_docs", exist_ok=True)
 
 class ChatRequest(BaseModel):
     query: str
-    model: str = "llama3-8b-8192"
+    model: str = "llama-3.1-8b-instant"
 
 @app.post("/upload")
 async def upload_document(file: UploadFile = File(...)):
@@ -270,9 +270,9 @@ async def chat_with_document(request: ChatRequest):
         
     models_to_try = [
         request.model,
-        "llama3-8b-8192",
-        "mixtral-8x7b-32768",
-        "gemma-7b-it"
+        "llama-3.1-8b-instant",
+        "llama-3.3-70b-versatile",
+        "gemma2-9b-it"
     ]
     
     models_to_try = list(dict.fromkeys(models_to_try))
