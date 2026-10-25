@@ -26,7 +26,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
-        "https://chat-with-your-documents-nine.vercel.app"
+        "https://chat-with-your-documents-alpha.vercel.app"
     ], 
     allow_credentials=True,
     allow_methods=["*"],
