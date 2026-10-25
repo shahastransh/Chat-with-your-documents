@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 
 from langchain_community.document_loaders import PyPDFLoader, Docx2txtLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_groq import ChatGroq
 from langchain_chroma import Chroma
 from langchain_core.prompts import ChatPromptTemplate
@@ -19,6 +19,8 @@ load_dotenv()
 
 if not os.getenv("GROQ_API_KEY"):
     raise ValueError("GROQ_API_KEY is not set in the .env file or environment variables.")
+if not os.getenv("GOOGLE_API_KEY"):
+    raise ValueError("GOOGLE_API_KEY is not set in the .env file or environment variables.")
 
 app = FastAPI(title="Chat With Your Document API")
 
@@ -64,53 +66,25 @@ async def upload_document(file: UploadFile = File(...)):
         )
         chunks = text_splitter.split_documents(documents)
         
-        # Define fallback sequence for embedding models
-        embedding_models_to_try = [
-            "sentence-transformers/all-MiniLM-L6-v2",
-            "BAAI/bge-small-en-v1.5",
-            "sentence-transformers/all-mpnet-base-v2"
-        ]
+        print("Attempting to embed with Google Generative AI")
+        embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
         
-        embedding_success = False
-        last_embed_error = None
+        VECTOR_STORE = Chroma.from_documents(
+            documents=chunks,
+            embedding=embeddings
+        )
         
-        for embed_model in embedding_models_to_try:
-            try:
-                print(f"Attempting to embed with model: {embed_model}")
-                
-                embeddings = HuggingFaceEmbeddings(
-                    model_name=embed_model
-                )
-                
-                VECTOR_STORE = Chroma.from_documents(
-                    documents=chunks,
-                    embedding=embeddings
-                )
-                
-                RETRIEVER = VECTOR_STORE.as_retriever(search_kwargs={"k": 4})
-                embedding_success = True
-                print(f"Success with embedding model {embed_model}")
-                break  # Exit loop if successful
-                
-            except Exception as e:
-                print(f"Embedding failed with {embed_model}: {str(e)}")
-                last_embed_error = e
-                continue
-                
-        if not embedding_success:
-            raise HTTPException(
-                status_code=500, 
-                detail=f"All embedding models failed. Last error: {str(last_embed_error)}"
-            )
+        RETRIEVER = VECTOR_STORE.as_retriever(search_kwargs={"k": 4})
+        print("Success with Google embedding model")
             
         return {"message": f"Successfully processed {file.filename}", "chunks": len(chunks)}
         
     except Exception as e:
+        print(f"Upload failed: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         if os.path.exists(file_location):
             os.remove(file_location)
-
 
 @app.post("/chat")
 async def chat_with_document(request: ChatRequest):
