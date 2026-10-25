@@ -67,8 +67,9 @@ async def upload_document(file: UploadFile = File(...)):
         )
         chunks = text_splitter.split_documents(documents)
         
+        # Updated to standard embedding-001 model
         embeddings = GoogleGenerativeAIEmbeddings(
-            model="models/text-embedding-004", 
+            model="models/embedding-001", 
             google_api_key=os.getenv("GOOGLE_API_KEY")
         )
         
