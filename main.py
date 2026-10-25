@@ -70,7 +70,7 @@ async def upload_document(file: UploadFile = File(...)):
         chunks = text_splitter.split_documents(documents)
         
         print("Attempting to embed with Google Generative AI")
-        embeddings = GoogleGenerativeAIEmbeddings(model="models/text-embedding-004")
+        embeddings = GoogleGenerativeAIEmbeddings(model="gemini-embedding-2-preview")
         
         VECTOR_STORE = Chroma.from_documents(
             documents=chunks,
