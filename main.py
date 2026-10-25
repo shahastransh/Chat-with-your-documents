@@ -263,6 +263,7 @@ async def upload_document(file: UploadFile = File(...)):
         if os.path.exists(file_location):
             os.remove(file_location)
 
+
 @app.post("/chat")
 async def chat_with_document(request: ChatRequest):
     if not RETRIEVER:
@@ -271,8 +272,7 @@ async def chat_with_document(request: ChatRequest):
     models_to_try = [
         request.model,
         "llama-3.1-8b-instant",
-        "llama-3.3-70b-versatile",
-        "gemma2-9b-it"
+        "mixtral-8x7b-32768"
     ]
     
     models_to_try = list(dict.fromkeys(models_to_try))
