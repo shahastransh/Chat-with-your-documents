@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 
 from langchain_community.document_loaders import PyPDFLoader, Docx2txtLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
+from langchain_community.embeddings import HuggingFaceInferenceAPIEmbeddings
 from langchain_groq import ChatGroq
 from langchain_chroma import Chroma
 from langchain_core.prompts import ChatPromptTemplate
@@ -19,9 +19,9 @@ load_dotenv()
 
 if not os.getenv("GROQ_API_KEY"):
     raise ValueError("GROQ_API_KEY is not set in the .env file")
-    
-if not os.getenv("GOOGLE_API_KEY"):
-    raise ValueError("GOOGLE_API_KEY is not set. Please add it to your environment variables.")
+
+if not os.getenv("HUGGINGFACEHUB_API_TOKEN"):
+    raise ValueError("HUGGINGFACEHUB_API_TOKEN is not set. Please add it to your environment variables.")
 
 app = FastAPI(title="Chat With Your Document API")
 
@@ -67,10 +67,10 @@ async def upload_document(file: UploadFile = File(...)):
         )
         chunks = text_splitter.split_documents(documents)
         
-        # Correctly updated to embedding-001
-        embeddings = GoogleGenerativeAIEmbeddings(
-            model="models/embedding-001", 
-            google_api_key=os.getenv("GOOGLE_API_KEY")
+        # Using Hugging Face's free Inference API to save Render RAM
+        embeddings = HuggingFaceInferenceAPIEmbeddings(
+            api_key=os.getenv("HUGGINGFACEHUB_API_TOKEN"),
+            model_name="sentence-transformers/all-MiniLM-L6-v2"
         )
         
         VECTOR_STORE = Chroma.from_documents(
