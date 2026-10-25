@@ -2,13 +2,38 @@
 
 A full-stack Retrieval-Augmented Generation (RAG) application that allows users to upload documents (PDF/DOCX) and ask questions about their contents in real-time. The system chunks the text, generates embeddings via serverless cloud APIs, and uses Groq's high-speed LLMs to synthesize accurate, context-aware answers.
 
+## Architecture
+
+```mermaid
+graph TD
+    A[User] -->|Uploads PDF/DOCX| B[Next.js Frontend]
+    A -->|Asks Question| B
+    B -->|REST API| C[FastAPI Backend]
+    
+    subgraph Document Processing
+    C -->|Parse & Split Text| C
+    end
+    
+    C -->|Text Chunks| D[Google Gemini API]
+    D -->|Vector Embeddings| E[(ChromaDB Vector Store)]
+    
+    C -->|Search Query| D
+    E -->|Retrieve Relevant Context| C
+    
+    C -->|Context + Prompt| F[Groq API]
+    F -->|Generated Answer| C
+    
+    C -->|JSON Response| B
+    B -->|Displays to User| A
+```
+
 ## Features
 
-* **Document Processing:** Natively parses and chunks PDF and DOCX files.
-* **Free & Fast AI:** Leverages Groq's API for lightning-fast inference using active models like `openai/gpt-oss-120b` and `qwen/qwen3-32b`.
-* **Automatic Fallback:** Gracefully cycles through a sequence of active LLMs if a specific model experiences downtime.
-* **Serverless Embeddings:** Uses Hugging Face's Free Inference API (`all-MiniLM-L6-v2`) to generate embeddings in the cloud. This keeps the backend memory footprint extremely low, making it perfect for free-tier hosting on Render.
-* **In-Memory Vector Search:** Utilizes ChromaDB for rapid similarity search without requiring an external database connection.
+- **Document Processing:** Natively parses and chunks PDF and DOCX files.
+- **Free & Fast AI:** Leverages Groq's API for lightning-fast inference using active models like `openai/gpt-oss-120b` and `qwen/qwen3-32b`.
+- **Automatic Fallback:** Gracefully cycles through a sequence of active LLMs if a specific model experiences downtime.
+- **Serverless Embeddings:** Uses Google Gemini's generous free tier (`models/text-embedding-004`) to generate embeddings in the cloud. This keeps the backend memory footprint extremely low, making it perfect for free-tier hosting on Render.
+- **In-Memory Vector Search:** Utilizes ChromaDB for rapid similarity search without requiring an external database connection.
 
 ## Tech Stack
 
@@ -18,7 +43,7 @@ A full-stack Retrieval-Augmented Generation (RAG) application that allows users 
 | **Backend** | FastAPI, Uvicorn, Python | Render (Web Service) |
 | **Orchestration** | LangChain | N/A |
 | **LLM Provider** | Groq API | N/A |
-| **Embeddings** | Hugging Face Inference API | N/A |
+| **Embeddings** | Google Gemini API | N/A |
 | **Vector Store** | ChromaDB | N/A |
 
 ## Environment Variables
@@ -26,11 +51,11 @@ A full-stack Retrieval-Augmented Generation (RAG) application that allows users 
 To run this project, you will need to add the following environment variables. 
 
 **Backend (`.env` in root directory):**
-* `GROQ_API_KEY` - Your free API key from Groq Console.
-* `HF_TOKEN` - Your free Hugging Face Access Token (requires "Make calls to Inference Providers" permission).
+- `GROQ_API_KEY`: Your free API key from the Groq Console.
+- `GOOGLE_API_KEY`: Your free API key from Google AI Studio.
 
 **Frontend (`.env.local` in `/frontend` directory):**
-* `NEXT_PUBLIC_API_URL` - The URL of your FastAPI backend (e.g., `http://127.0.0.1:8000` for local dev, or your production Render URL without a trailing slash).
+- `NEXT_PUBLIC_API_URL`: The URL of your FastAPI backend (e.g., `http://127.0.0.1:8000` for local dev, or your production Render URL without a trailing slash).
 
 ## Local Development Setup
 
