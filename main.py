@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 
 from langchain_community.document_loaders import PyPDFLoader, Docx2txtLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_community.embeddings import HuggingFaceInferenceAPIEmbeddings
 from langchain_groq import ChatGroq
 from langchain_chroma import Chroma
 from langchain_core.prompts import ChatPromptTemplate
@@ -19,6 +19,9 @@ load_dotenv()
 
 if not os.getenv("GROQ_API_KEY"):
     raise ValueError("GROQ_API_KEY is not set in the .env file")
+
+if not os.getenv("HUGGINGFACEHUB_API_TOKEN"):
+    raise ValueError("HUGGINGFACEHUB_API_TOKEN is not set. Please add it to your environment variables.")
 
 app = FastAPI(title="Chat With Your Document API")
 
@@ -64,8 +67,9 @@ async def upload_document(file: UploadFile = File(...)):
         )
         chunks = text_splitter.split_documents(documents)
         
-        # Using local Hugging Face embeddings to bypass network API errors
-        embeddings = HuggingFaceEmbeddings(
+        # Offload embedding compute to Hugging Face servers to save Render RAM
+        embeddings = HuggingFaceInferenceAPIEmbeddings(
+            api_key=os.getenv("HUGGINGFACEHUB_API_TOKEN"),
             model_name="sentence-transformers/all-MiniLM-L6-v2"
         )
         
