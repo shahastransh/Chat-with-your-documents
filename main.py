@@ -18,10 +18,10 @@ from langchain_classic.chains.combine_documents import create_stuff_documents_ch
 load_dotenv()
 
 if not os.getenv("GROQ_API_KEY"):
-    raise ValueError("GROQ_API_KEY is not set in the .env file")
-
-if not os.getenv("HUGGINGFACEHUB_API_TOKEN"):
-    raise ValueError("HUGGINGFACEHUB_API_TOKEN is not set. Please add it to your environment variables.")
+    raise ValueError("GROQ_API_KEY is not set in the .env file or environment variables.")
+    
+if not os.getenv("HF_TOKEN"):
+    raise ValueError("HF_TOKEN is not set. Please add it to your .env file or Render environment variables.")
 
 app = FastAPI(title="Chat With Your Document API")
 
@@ -40,7 +40,7 @@ os.makedirs("temp_docs", exist_ok=True)
 
 class ChatRequest(BaseModel):
     query: str
-    model: str = "openai/gpt-oss-20b"
+    model: str = "llama3-8b-8192"
 
 @app.post("/upload")
 async def upload_document(file: UploadFile = File(...)):
@@ -67,19 +67,45 @@ async def upload_document(file: UploadFile = File(...)):
         )
         chunks = text_splitter.split_documents(documents)
         
-        # Offload embedding compute to Hugging Face servers to save Render RAM
-        embeddings = HuggingFaceInferenceAPIEmbeddings(
-            api_key=os.getenv("HUGGINGFACEHUB_API_TOKEN"),
-            model_name="sentence-transformers/all-MiniLM-L6-v2"
-        )
+        # Define fallback sequence for embedding models
+        embedding_models_to_try = [
+            "sentence-transformers/all-MiniLM-L6-v2",
+            "BAAI/bge-small-en-v1.5",
+            "sentence-transformers/all-mpnet-base-v2"
+        ]
         
-        VECTOR_STORE = Chroma.from_documents(
-            documents=chunks,
-            embedding=embeddings
-        )
+        embedding_success = False
+        last_embed_error = None
         
-        RETRIEVER = VECTOR_STORE.as_retriever(search_kwargs={"k": 4})
-        
+        for embed_model in embedding_models_to_try:
+            try:
+                print(f"Attempting to embed with model: {embed_model}")
+                embeddings = HuggingFaceInferenceAPIEmbeddings(
+                    api_key=os.getenv("HF_TOKEN"),
+                    model_name=embed_model
+                )
+                
+                VECTOR_STORE = Chroma.from_documents(
+                    documents=chunks,
+                    embedding=embeddings
+                )
+                
+                RETRIEVER = VECTOR_STORE.as_retriever(search_kwargs={"k": 4})
+                embedding_success = True
+                print(f"Success with embedding model {embed_model}")
+                break  # Exit loop if successful
+                
+            except Exception as e:
+                print(f"Embedding failed with {embed_model}: {str(e)}")
+                last_embed_error = e
+                continue
+                
+        if not embedding_success:
+            raise HTTPException(
+                status_code=500, 
+                detail=f"All embedding models failed. Last error: {str(last_embed_error)}"
+            )
+            
         return {"message": f"Successfully processed {file.filename}", "chunks": len(chunks)}
         
     except Exception as e:
@@ -88,6 +114,7 @@ async def upload_document(file: UploadFile = File(...)):
         if os.path.exists(file_location):
             os.remove(file_location)
 
+
 @app.post("/chat")
 async def chat_with_document(request: ChatRequest):
     if not RETRIEVER:
@@ -95,9 +122,9 @@ async def chat_with_document(request: ChatRequest):
         
     models_to_try = [
         request.model,
-        "openai/gpt-oss-20b",
-        "openai/gpt-oss-120b",
-        "qwen/qwen3-32b"
+        "llama3-8b-8192",
+        "mixtral-8x7b-32768",
+        "gemma-7b-it"
     ]
     
     models_to_try = list(dict.fromkeys(models_to_try))
