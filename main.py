@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 
 from langchain_community.document_loaders import PyPDFLoader, Docx2txtLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.embeddings import HuggingFaceInferenceAPIEmbeddings
+from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_groq import ChatGroq
 from langchain_chroma import Chroma
 from langchain_core.prompts import ChatPromptTemplate
@@ -19,9 +19,6 @@ load_dotenv()
 
 if not os.getenv("GROQ_API_KEY"):
     raise ValueError("GROQ_API_KEY is not set in the .env file or environment variables.")
-    
-if not os.getenv("HF_TOKEN"):
-    raise ValueError("HF_TOKEN is not set. Please add it to your .env file or Render environment variables.")
 
 app = FastAPI(title="Chat With Your Document API")
 
@@ -80,8 +77,8 @@ async def upload_document(file: UploadFile = File(...)):
         for embed_model in embedding_models_to_try:
             try:
                 print(f"Attempting to embed with model: {embed_model}")
-                embeddings = HuggingFaceInferenceAPIEmbeddings(
-                    api_key=os.getenv("HF_TOKEN"),
+                
+                embeddings = HuggingFaceEmbeddings(
                     model_name=embed_model
                 )
                 
