@@ -2,7 +2,7 @@
 import { useState } from 'react';
 
 // Safely grab the URL and remove any trailing slashes to prevent 404 Not Found errors
-const rawApiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+const rawApiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 const BACKEND_URL = rawApiUrl.replace(/\/+$/, "");
 
 export default function Home() {
