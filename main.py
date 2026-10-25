@@ -24,11 +24,8 @@ app = FastAPI(title="Chat With Your Document API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "https://chat-with-your-documents-alpha.vercel.app"
-    ], 
-    allow_credentials=True,
+    allow_origins=["*"], 
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
