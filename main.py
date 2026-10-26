@@ -216,7 +216,7 @@ os.makedirs("temp_docs", exist_ok=True)
 
 class ChatRequest(BaseModel):
     query: str
-    model: str = "llama-3.1-8b-instant"
+    model: str = "openai/gpt-oss-20b"
 
 @app.post("/upload")
 async def upload_document(file: UploadFile = File(...)):
@@ -271,8 +271,8 @@ async def chat_with_document(request: ChatRequest):
         
     models_to_try = [
         request.model,
-        "llama-3.1-8b-instant",
-        "mixtral-8x7b-32768"
+        "openai/gpt-oss-20b",
+        "openai/gpt-oss-120b"
     ]
     
     models_to_try = list(dict.fromkeys(models_to_try))
