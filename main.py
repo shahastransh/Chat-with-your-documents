@@ -329,6 +329,9 @@
 
 # 
 
+# 
+
+
 import os
 import shutil
 import time
@@ -374,20 +377,13 @@ class ChatRequest(BaseModel):
     query: str
     model: str = "openai/gpt-oss-20b"
 
-def embed_in_background(file_location: str, filename: str):
+def embed_in_background(chunks: list, batch_size: int, file_location: str, filename: str):
     global VECTOR_STORE, RETRIEVER, IS_PROCESSING
     IS_PROCESSING = True
     
     try:
-        loader = PyPDFLoader(file_location) if file_location.endswith('.pdf') else Docx2txtLoader(file_location)
-        documents = loader.load()
-        
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=1500, chunk_overlap=200)
-        chunks = text_splitter.split_documents(documents)
-        
         embeddings = GoogleGenerativeAIEmbeddings(model="gemini-embedding-2-preview")
         
-        batch_size = 15 
         for i in range(0, len(chunks), batch_size):
             batch = chunks[i:i + batch_size]
             print(f"Processing batch {i//batch_size + 1} of {(len(chunks)//batch_size)+1}...")
@@ -399,6 +395,7 @@ def embed_in_background(file_location: str, filename: str):
                 
             RETRIEVER = VECTOR_STORE.as_retriever(search_kwargs={"k": 4})
             
+            # Sleep only if there are more batches remaining
             if i + batch_size < len(chunks):
                 print("Waiting 65 seconds for Google API free tier quota reset...")
                 time.sleep(65)
@@ -421,9 +418,39 @@ async def upload_document(background_tasks: BackgroundTasks, file: UploadFile = 
     with open(file_location, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
         
-    background_tasks.add_task(embed_in_background, file_location, file.filename)
-    
-    return {"message": "Upload accepted! The 70-page document is processing in the background. Please wait 4-5 minutes before asking questions."}
+    try:
+        # Load immediately to evaluate document size
+        loader = PyPDFLoader(file_location) if file.filename.endswith('.pdf') else Docx2txtLoader(file_location)
+        documents = loader.load()
+        
+        # Dynamic chunking logic based on length
+        num_pages = len(documents)
+        if num_pages > 50:
+            c_size, b_size = 2500, 8
+        elif num_pages > 15:
+            c_size, b_size = 1500, 15
+        else:
+            c_size, b_size = 1000, 25
+            
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=c_size, chunk_overlap=200)
+        chunks = text_splitter.split_documents(documents)
+        
+        total_batches = (len(chunks) // b_size) + (1 if len(chunks) % b_size != 0 else 0)
+        
+        # Calculate precise estimated seconds (65s wait between batches, plus ~5s API latency per batch)
+        estimated_seconds = max(0, (total_batches - 1) * 65) + (total_batches * 5)
+        
+        background_tasks.add_task(embed_in_background, chunks, b_size, file_location, file.filename)
+        
+        return {
+            "message": f"Upload accepted! Document length: {num_pages} pages.",
+            "estimated_seconds": estimated_seconds
+        }
+        
+    except Exception as e:
+        if os.path.exists(file_location):
+            os.remove(file_location)
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/chat")
 async def chat_with_document(request: ChatRequest):

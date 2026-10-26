@@ -142,10 +142,14 @@
 //   );
 // }
 
+// 
+
+
+
+
 'use client';
 import { useState, useEffect } from 'react';
 
-// Safely grab the URL and remove any trailing slashes to prevent 404 Not Found errors
 const rawApiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 const BACKEND_URL = rawApiUrl.replace(/\/+$/, "");
 
@@ -160,13 +164,12 @@ export default function Home() {
   
   const [progress, setProgress] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [estimatedTime, setEstimatedTime] = useState(5);
 
-  // Timer effect for the progress bar (300 seconds / 5 minutes)
   useEffect(() => {
     let interval: NodeJS.Timeout;
-    if (isProcessing) {
-      const totalSeconds = 300; 
-      const increment = 100 / totalSeconds;
+    if (isProcessing && estimatedTime > 0) {
+      const increment = 100 / estimatedTime;
       
       interval = setInterval(() => {
         setProgress((prev) => {
@@ -181,12 +184,12 @@ export default function Home() {
       }, 1000);
     }
     return () => clearInterval(interval);
-  }, [isProcessing]);
+  }, [isProcessing, estimatedTime]);
 
   const handleUpload = async () => {
     if (!file) return alert('Please select a file first.');
     setLoading(true);
-    setUploadStatus('Uploading to server...');
+    setUploadStatus('Evaluating document size...');
     setProgress(0);
     setIsProcessing(false);
 
@@ -201,11 +204,15 @@ export default function Home() {
       const data = await res.json();
       
       if (res.ok) {
-        setUploadStatus(data.message);
-        // Trigger the progress bar if the backend indicates background processing
-        if (data.message.includes('background')) {
-          setIsProcessing(true);
-        }
+        const estSeconds = data.estimated_seconds || 5;
+        setEstimatedTime(estSeconds);
+        setIsProcessing(true);
+        
+        const timeDisplay = estSeconds > 60 
+            ? `~${Math.ceil(estSeconds / 60)} minutes` 
+            : `~${estSeconds} seconds`;
+            
+        setUploadStatus(`${data.message} Estimated wait: ${timeDisplay}.`);
       } else {
         setUploadStatus(`Error: ${data.detail}`);
       }
@@ -247,7 +254,6 @@ export default function Home() {
     <main className="max-w-4xl mx-auto p-8 font-sans text-gray-800">
       <h1 className="text-4xl font-bold mb-8 text-center text-blue-600">Chat With Your Document</h1>
 
-      {/* Upload Section */}
       <div className="bg-white shadow-md p-6 rounded-xl border border-gray-100 mb-8">
         <h2 className="text-xl font-semibold mb-4">1. Upload Document (PDF / DOCX)</h2>
         <div className="flex flex-col sm:flex-row gap-4 items-center">
@@ -266,7 +272,6 @@ export default function Home() {
           </button>
         </div>
         
-        {/* Animated Progress Bar UI */}
         {(isProcessing || progress > 0) && (
           <div className="mt-6 w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
             <div 
@@ -283,7 +288,6 @@ export default function Home() {
         )}
       </div>
 
-      {/* Chat Section */}
       <div className="bg-white shadow-md p-6 rounded-xl border border-gray-100">
         <h2 className="text-xl font-semibold mb-4">2. Ask Questions</h2>
         <div className="flex flex-col sm:flex-row gap-4 mb-6">
